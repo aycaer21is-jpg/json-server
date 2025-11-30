@@ -13,13 +13,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Build (if you need a build step, add it here)
+        # Example: run a static site build if you have one (comment out if not needed)
+        # run: npm ci && npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v1
         with:
-          path: './'
+          path: './' # publish the repository root
 
   deploy-pages:
     needs: build
