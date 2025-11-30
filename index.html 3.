@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moves by Type / Year — Iceland</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+  <header><h1>Moves by Type / Year — Iceland</h1></header>
+  <main>
+    <aside id="controls">
+      <div><label>Year: <select id="yearSelect"><option value="">All</option></select></label></div>
+      <div><label>Type: <select id="typeSelect" multiple size="6"></select></label></div>
+      <div><label>Min persons: <input id="minPersons" type="number" value="0" min="0" /></label></div>
+      <div><button id="apply">Apply</button> <button id="reset">Reset</button></div>
+      <hr/>
+      <div id="legend"><strong>Legend</strong><div id="legendItems"></div></div>
+    </aside>
+    <section id="map"></section>
+  </main>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
