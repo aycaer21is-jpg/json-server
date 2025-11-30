@@ -1,0 +1,10 @@
+html,body,#map{height:100%;margin:0}
+body{display:flex;flex-direction:column;font-family:Arial,Helvetica,sans-serif}
+header{padding:0.5rem;background:#1e90ff;color:#fff}
+main{display:flex;flex:1;min-height:0}
+#controls{width:260px;padding:0.6rem;border-right:1px solid #eee;background:#fafafa;overflow:auto}
+#map{flex:1;min-height:400px}
+label{display:block;margin:0.5rem 0}
+select[multiple]{width:100%}
+#legendItems{margin-top:0.5rem}
+.flow{pointer-events:visibleStroke;cursor:pointer}
