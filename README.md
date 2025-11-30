@@ -1,215 +1,154 @@
-# JSON-Server
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"Sample point (fixed)"},"geometry":{"type":"Point","coordinates":[-19.0,64.9]}}]}// Load map and GeoJSON, populate sidebar with robust error handling + fallback
+const map = L.map('map', {preferCanvas:true}).setView([64.9, -19.0], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap contributors'}).addTo(map);
 
-[![Node.js CI](https://github.com/typicode/json-server/actions/workflows/node.js.yml/badge.svg)](https://github.com/typicode/json-server/actions/workflows/node.js.yml)
+let geoLayer = null;
+let features = [];
 
-> [!IMPORTANT]
-> Viewing beta v1 documentation – usable but expect breaking changes. For stable version, see [here](https://github.com/typicode/json-server/tree/v0)
+function showErrorMessage(msg){
+  console.error(msg);
+  const list = document.getElementById('list');
+  if (list) list.innerHTML = `<li style="color:#a00"><strong>Error:</strong> ${msg}</li>`;
+}
 
-> [!NOTE]
-> Using React ⚛️ ? Check my new project [MistCSS](https://github.com/typicode/mistcss) to write type-safe styles (works with TailwindCSS)
+function createListItem(feature, layer){
+  const li = document.createElement('li');
+  li.tabIndex = 0;
+  const title = feature.properties && (feature.properties.name || feature.properties.id || 'Feature');
+  li.innerHTML = `<strong>${title}</strong><div class="meta">${feature.properties && feature.properties.source ? feature.properties.source : ''}</div>`;
+  li.addEventListener('click', ()=>{
+    if(layer.getBounds){
+      map.fitBounds(layer.getBounds(), {padding:[20,20]});
+    } else if(layer.getLatLng){
+      map.setView(layer.getLatLng(), 12);
+    }
+    layer.openPopup && layer.openPopup();
+  });
+  return li;
+}
 
-## Install
+function populateSidebar(layerGeoJSON){
+  features = layerGeoJSON.features || [];
+  if (geoLayer) { geoLayer.remove(); geoLayer = null; }
+  geoLayer = L.geoJSON(layerGeoJSON, {
+    style: f=>({color:'#1e90ff', weight:2, fillOpacity:0.2}),
+    onEachFeature: (f, l)=>{
+      const title = f.properties && (f.properties.name || f.properties.id || 'Feature');
+      l.bindPopup(`<strong>${title}</strong>`);
+    }
+  }).addTo(map);
 
-```shell
-npm install json-server
-```
+  const list = document.getElementById('list');
+  if (!list) return;
+  list.innerHTML = '';
+  geoLayer.eachLayer((layer, idx)=>{
+    const f = features[idx] || {};
+    const li = createListItem(f, layer);
+    list.appendChild(li);
+  });
 
-## Usage
-
-Create a `db.json` or `db.json5` file
-
-```json
-{
-  "posts": [
-    { "id": "1", "title": "a title", "views": 100 },
-    { "id": "2", "title": "another title", "views": 200 }
-  ],
-  "comments": [
-    { "id": "1", "text": "a comment about post 1", "postId": "1" },
-    { "id": "2", "text": "another comment about post 1", "postId": "1" }
-  ],
-  "profile": {
-    "name": "typicode"
+  try {
+    if(geoLayer.getBounds && geoLayer.getBounds().isValid()){
+      map.fitBounds(geoLayer.getBounds(), {padding:[20,20]});
+    } else {
+      map.setView([64.9, -19.0], 6);
+    }
+  } catch(e){
+    map.setView([64.9, -19.0], 6);
   }
 }
-```
 
-<details>
-
-<summary>View db.json5 example</summary>
-
-```json5
-{
-  posts: [
-    { id: '1', title: 'a title', views: 100 },
-    { id: '2', title: 'another title', views: 200 },
-  ],
-  comments: [
-    { id: '1', text: 'a comment about post 1', postId: '1' },
-    { id: '2', text: 'another comment about post 1', postId: '1' },
-  ],
-  profile: {
-    name: 'typicode',
-  },
+async function tryFetchGeo(url){
+  const res = await fetch(url, {cache:'no-cache'});
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}`);
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    // include nearby snippet to help debugging
+    const match = err.message && err.message.match(/position (\d+)/);
+    let snippet = text.slice(0, 300);
+    if (match && match[1]) {
+      const p = parseInt(match[1], 10);
+      snippet = text.slice(Math.max(0, p - 120), Math.min(text.length, p + 120));
+    }
+    const message = `Failed to parse JSON from ${url}: ${err.message}. Snippet:\n${snippet.replace(/\n/g,'\\n')}`;
+    const parseError = new Error(message);
+    parseError.originalText = text;
+    throw parseError;
+  }
 }
-```
 
-You can read more about JSON5 format [here](https://github.com/json5/json5).
+async function loadGeoJSON(){
+  const relativeUrl = 'is.json';
+  const absoluteUrl = 'https://aycaer21is-jpg.github.io/json-server/is.json';
 
-</details>
-
-Pass it to JSON Server CLI
-
-```shell
-$ npx json-server db.json
-```
-
-Get a REST API
-
-```shell
-$ curl http://localhost:3000/posts/1
-{
-  "id": "1",
-  "title": "a title",
-  "views": 100
+  try {
+    const geo = await tryFetchGeo(relativeUrl);
+    populateSidebar(geo);
+    return;
+  } catch (err1) {
+    console.warn('Relative fetch/parse failed:', err1);
+    try {
+      const geo = await tryFetchGeo(absoluteUrl);
+      populateSidebar(geo);
+      return;
+    } catch (err2) {
+      console.error('Absolute fetch/parse failed:', err2);
+      if (err2.message) console.error(err2.message);
+      showErrorMessage('Failed to load or parse is.json (see console). Using fallback data so the map remains visible.');
+      const fallback = {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: { name: "Fallback point" },
+          geometry: { type: "Point", coordinates: [-19.0, 64.9] }
+        }]
+      };
+      populateSidebar(fallback);
+    }
+  }
 }
-```
 
-Run `json-server --help` for a list of options
+document.getElementById('search').addEventListener('input', function(e){
+  const q = e.target.value.trim().toLowerCase();
+  const list = document.getElementById('list');
+  if (!list) return;
+  Array.from(list.children).forEach(li=>{
+    const keep = q === '' || li.innerText.toLowerCase().includes(q);
+    li.style.display = keep ? '' : 'none';
+  });
+});
+document.getElementById('zoomAll').addEventListener('click', ()=>{
+  if(geoLayer && geoLayer.getBounds) map.fitBounds(geoLayer.getBounds(), {padding:[20,20]});
+});
 
-## Sponsors ✨
+loadGeoJSON();name: Deploy to GitHub Pages
 
-### Gold
+on:
+  push:
+    branches: [ main ]
 
-||
-| :---: |
-| <a href="https://mockend.com/" target="_blank"><img src="https://jsonplaceholder.typicode.com/mockend.svg" height="100px"></a> |
-| <a href="https://zuplo.link/json-server-gh"><img src="https://github.com/user-attachments/assets/adfee31f-a8b6-4684-9a9b-af4f03ac5b75" height="100px"></a> |
-| <a href="https://www.mintlify.com/"><img src="https://github.com/user-attachments/assets/bcc8cc48-b2d9-4577-8939-1eb4196b7cc5" height="100px"></a> |
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
-### Silver
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-||
-| :---: |
-| <a href="https://requestly.com?utm_source=githubsponsor&utm_medium=jsonserver&utm_campaign=jsonserver"><img src="https://github.com/user-attachments/assets/f7e7b3cf-97e2-46b8-81c8-cb3992662a1c" style="height:70px; width:auto;"></a> |
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: './' # publish the repository root
 
-### Bronze
-
-|||
-| :---: | :---: |
-| <a href="https://www.storyblok.com/" target="_blank"><img src="https://github.com/typicode/json-server/assets/5502029/c6b10674-4ada-4616-91b8-59d30046b45a" height="35px"></a> | <a href="https://betterstack.com/" target="_blank"><img src="https://github.com/typicode/json-server/assets/5502029/44679f8f-9671-470d-b77e-26d90b90cbdc" height="35px"></a> |
-
-[Become a sponsor and have your company logo here](https://github.com/users/typicode/sponsorship)
-
-## Sponsorware
-
-> [!NOTE]
-> This project uses the [Fair Source License](https://fair.io/). Only organizations with 3+ users are kindly asked to contribute a small amount through sponsorship [sponsor](https://github.com/sponsors/typicode) for usage. __This license helps keep the project sustainable and healthy, benefiting everyone.__
->
-> For more information, FAQs, and the rationale behind this, visit [https://fair.io/](https://fair.io/).
-
-## Routes
-
-Based on the example `db.json`, you'll get the following routes:
-
-```
-GET    /posts
-GET    /posts/:id
-POST   /posts
-PUT    /posts/:id
-PATCH  /posts/:id
-DELETE /posts/:id
-
-# Same for comments
-```
-
-```
-GET   /profile
-PUT   /profile
-PATCH /profile
-```
-
-## Params
-
-### Conditions
-
-- ` ` → `==`
-- `lt` → `<`
-- `lte` → `<=`
-- `gt` → `>`
-- `gte` → `>=`
-- `ne` → `!=`
-
-```
-GET /posts?views_gt=9000
-```
-
-### Range
-
-- `start`
-- `end`
-- `limit`
-
-```
-GET /posts?_start=10&_end=20
-GET /posts?_start=10&_limit=10
-```
-
-### Paginate
-
-- `page`
-- `per_page` (default = 10)
-
-```
-GET /posts?_page=1&_per_page=25
-```
-
-### Sort
-
-- `_sort=f1,f2`
-
-```
-GET /posts?_sort=id,-views
-```
-
-### Nested and array fields
-
-- `x.y.z...`
-- `x.y.z[i]...`
-
-```
-GET /foo?a.b=bar
-GET /foo?x.y_lt=100
-GET /foo?arr[0]=bar
-```
-
-### Embed
-
-```
-GET /posts?_embed=comments
-GET /comments?_embed=post
-```
-
-## Delete
-
-```
-DELETE /posts/1
-DELETE /posts/1?_dependent=comments
-```
-
-## Serving static files
-
-If you create a `./public` directory, JSON Server will serve its content in addition to the REST API.
-
-You can also add custom directories using `-s/--static` option.
-
-```sh
-json-server -s ./static
-json-server -s ./static -s ./node_modules
-```
-
-## Notable differences with v0.17
-
-- `id` is always a string and will be generated for you if missing
-- use `_per_page` with `_page` instead of `_limit`for pagination
-- use Chrome's `Network tab > throtling` to delay requests instead of `--delay` CLI option
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v1
