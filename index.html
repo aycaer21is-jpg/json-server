@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Iceland Regions — Map</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+  <header>
+    <h1>Iceland Regions</h1>
+    <div class="subtitle">Interactive map of regions (is.json)</div>
+  </header>
+  <main>
+    <aside id="sidebar">
+      <div id="controls">
+        <input id="search" placeholder="Filter regions..." aria-label="Filter regions" />
+        <button id="zoomAll">Zoom to all</button>
+      </div>
+      <ul id="list"></ul>
+    </aside>
+    <section id="map"></section>
+  </main>
+  <footer>Built with Leaflet • Drop a new is.json to replace the data</footer>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
