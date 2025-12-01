@@ -12,7 +12,7 @@ const g = svg.append('g').attr('class','flows');
 
 async function loadData(){
   const regionsUrl = 'regions_100.geojson'; // points to the file already in your repo root
-  const flowsUrl = 'data/flows.csv';
+  const flowsUrl = 'https://raw.githubusercontent.com/aycaer21is-jpg/json-server/main/data/flows.csv';
   [regions, flows] = await Promise.all([
     d3.json(regionsUrl),
     d3.csv(flowsUrl, d => ({ origin_id: d.origin_id, dest_id: d.dest_id, type: d.type, year: d.year ? +d.year : null, unit: d.unit || 'persons', persons: d.persons ? +d.persons : 0 }))
