@@ -1,0 +1,5 @@
+origin_id,dest_id,type,year,unit,persons
+REYK,AKUR,Internal,2020,persons,120
+AKUR,REYK,Internal,2020,persons,80
+REYK,ISL2,Work,2020,persons,45
+ISL2,REYK,Family,2021,persons,60
